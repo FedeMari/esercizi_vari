@@ -1,0 +1,137 @@
+--> Esempio: Reflection
+
+package com.wibbley.leitnerbox.utility;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class JsonSerializer {
+
+	private String capitalize(String src) {
+		return src.substring(0, 1).toUpperCase() + src.substring(1);
+	}
+	
+	public static List<String> splitString(String input) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder currentPart = new StringBuilder();
+        int bracketCount = 0;
+
+        for (char c : input.toCharArray()) {
+            if (c == '{') {
+                bracketCount++;
+            } else if (c == '}') {
+                bracketCount--;
+            }
+            if (c == ',' && bracketCount == 0) {
+                parts.add(currentPart.toString().trim());
+                currentPart = new StringBuilder();
+            } else {
+                currentPart.append(c);
+            }
+        }
+        parts.add(currentPart.toString().trim());
+        return parts;
+    }
+
+	private Method getGetter(Object obj, String attribute) {
+
+		String methodName = "get" + capitalize(attribute);
+
+		Method method = null;
+		try {
+			method = obj.getClass().getMethod(methodName);
+		} catch (SecurityException e) {
+			e.printStackTrace();
+		} catch (NoSuchMethodException e) {
+			e.printStackTrace();
+		}
+		return method;
+	}
+	
+	public <T> List<HashMap<String,Object>> serializeAll(String format, List<T> list){
+		List<HashMap<String, Object>> result = new ArrayList<>();
+		for(var element : list) {
+			result.add(serialize(format, element));
+		}
+		return result;
+	}
+
+	public HashMap<String, Object> serialize(String format, Object object) {
+		
+		//{att1, att2, attObject3: {att31, att32}, attList4: []}
+		
+		var attributes = new HashMap<String, Object>();
+		
+		format = format.substring(1, format.length() - 1);
+		format = format.replaceAll("\\s+", "");
+		System.out.println(format);
+		var attrKeys = splitString(format);
+		
+		for(var element : attrKeys) {
+			System.out.println(element);
+		}
+		
+		for(var element : attrKeys) {
+			if(!element.contains(":")) {
+				try {
+					attributes.put(element, getGetter(object, element).invoke(object));
+				} catch (IllegalAccessException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InvocationTargetException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			else {
+				var parts = element.split(":");
+				var attr = parts[0];
+				
+				Object serialized = null;
+				Class<?> type = null;
+				try {
+					Method getter = getGetter(object, attr);
+					serialized = getter.invoke(object);
+					type = getter.getReturnType();
+				} catch (IllegalAccessException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				} catch (InvocationTargetException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				if(Iterable.class.isAssignableFrom(type)) {
+					var list = new ArrayList<>();
+					try {
+						for(var el : (Iterable<?>) serialized) {
+							list.add(serialize(parts[1], el));
+						}
+					} catch (NullPointerException e) {
+					
+					}
+					attributes.put(attr, list);
+				}else {
+					attributes.put(attr, serialize(parts[1], serialized));
+				}
+			
+				
+			}
+		}
+		return attributes;
+	}
+
+}
+
+--> Esempio Lista Utenti:
+
+	var students = dao.findAll();
+        String format = "{id, username, email, password, decks:{name}}";
+        var data = new JsonSerializer().serializeAll(format, students);
+        return data;

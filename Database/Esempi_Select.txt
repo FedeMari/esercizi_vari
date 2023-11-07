@@ -1,0 +1,582 @@
+->TEORIA
+
+
+1) PRIMO JOIN
+
+ALTER SESSION SET current_schema = SQL_CORSO_DB;
+
+-- cust identifica il cliente che ha fatto l'ordine, qui è chiave esterna che 
+-- referenzia cust_num chiave primaria di customers, che identifica univocamente un cliente
+SELECT order_num, cust
+    FROM orders;
+    
+SELECT cust_num, company, credit_limit
+    FROM customers;
+
+-- effettuo un prodotto cartesiano tra le due colonne
+SELECT O.order_num, O.cust, C.cust_num, C.company, C.credit_limit
+    FROM orders O, customers C
+    ORDER BY O.cust, C.cust_num
+
+-- condizione di JOIN esplicitata dalla clausola WHERE
+-- order_tot e client_name sono i nomi delle colonne che assegno
+SELECT O.order_num, O.amount order_tot, C.company client_name, C.credit_limit
+    FROM orders O, customers C
+    WHERE O.cust = C.cust_num
+    
+
+2) EQUI-JOIN
+
+-- mostrare tutti gli ordini ricevuti dai venditori nella regione orientale, mostrando la descrizione del
+-- prodotto e il venditore (tabelle ORDERS, SALESREPS, OFFICES e PRODUCTS).
+
+select O.order_num, S.name, P.description
+    from orders O, salesreps S, offices F, products P
+    -- responsabile che ha preso in carico l'ordine = numero id responsabile
+    where O.rep = S.empl_num and
+        -- leghiamo l'ufficio al responsabile
+        S.rep_office = F.office and
+        -- lego il prodotto alla sua descrizione
+        O.product = P.product_id and
+        O.mfr = P.mfr_id and
+        -- quest'ultimo non è un vincolo di relazione, ma un FILTRO
+        F.region = 'Eastern';
+
+3) LEFT-JOIN / SUB-QUERY
+
+ Tutti i clienti che non hanno ancora un ordine
+
+SELECT c.cust_num
+FROM CUSTOMERS c
+ LEFT JOIN ORDERS o    			-- Serve LEFT JOIN perché nel ResultSet ci sono alcune righe con valore null
+    ON cust_num = cust
+GROUP BY c.cust_num			-- DEVI RAGGRUPPARE altrimenti il count ovviamente non funziona perchè stai chiedendo alla WHERE di lavorare con una funzione di aggregazione
+HAVING COUNT (o.Order_num) = 0;
+
+SELECT c.cust_num, c.company
+FROM CUSTOMERS c
+WHERE c.cust_num NOT IN (
+    SELECT c.cust_num
+    FROM ORDERS o
+      JOIN CUSTOMERS c 
+        ON o.cust = c.cust_num
+);
+
+-- Seleziona cliente da tabella ordini
+
+SELECT *
+FROM ORDERS o
+WHERE o.cust = 2119;
+
+###########################################################################################################################################################################################
+
+-> ESERCIZI 
+
+
+1) Il nome di tutte le sale di Pisa
+
+SELECT s.nome
+	FROM SALE s
+	WHERE s.citta = 'Pisa';
+
+
+2) Il titolo dei film di F. Fellini prodotti dopo il 1960
+
+SELECT f.Titolo
+	FROM FILM f
+	WHERE f.AnnoProduzione > 1960
+	AND f.Regista = 'F. Fellini';
+
+3) Il titolo e la durata dei film di fantascienza giapponesi o francesi prodotti dopo il 1990
+
+-- servono parentesi per considerare entrambi i casi
+
+SELECT f.Titolo
+	FROM FILM f
+	WHERE (f.Nazionalita = 'Giapponese' OR f.Nazionalita = 'Francese')
+	AND f.Genere = 'Fantascienza'
+	AND f.AnnoProduzione > 1990;
+
+
+4) Il titolo dei film di fantascienza giapponesi prodotti dopo il 1990 oppure francesi
+
+SELECT f.Titolo
+	FROM FILM f
+	WHERE f.Genere = 'Fantascienza'
+	AND f.Nazionalita = 'Giapponese'
+	AND f.AnnoProduzione > 1990
+	OR f.Nazionalita = 'Francese';
+
+
+5) Il titolo ed il genere dei film proiettati il giorno di Natale 2004
+
+SELECT f.Titolo, f.Genere
+	FROM FILM f, PROIEZIONI p
+	WHERE p.CodFilm* = f.CodFilm NAD p.DataProiezione = '25-DIC-2004'
+
+
+6) Il titolo ed il genere dei film proiettati a Napoli il giorno di Natale 2004
+
+
+-- serve DISTINCT perchè potremmo avere piuù sale a Napoli che proiettano più film
+
+SELECT DISTINCT f.Titolo, f.Genere
+	FROM FILM f, PROIEZIONI p, SALE s
+	WHERE p.CodFilm* = f.CodFilm 
+	AND p.CodSala* = s.CodSala
+	AND (p.DataProiezione = '25-DIC-2004' AND s.Citta = 'Napoli')
+
+
+7) Il titolo dei film in cui recita M. Mastroianni oppure S.Loren
+
+SELECT f.Titolo
+	FROM FILM f, RECITA r, ATTORI a
+	WHERE f.CodFilm = r.CodFilm* 
+	AND r.CodAttore* = a.CodAttore
+	AND (a.Nome = 'M. Mastroianni' OR 'a.Nome = S.Loren')
+
+7.1) Variazione con UNION anzichè OR
+
+SELECT f.Titolo
+	FROM FILM f, RECITA r, ATTORI a
+	WHERE f.CodFilm = r.CodFilm* 
+	AND r.CodAttore* = a.CodAttore
+	AND a.Nome = 'M. Mastroianni'
+
+	UNION 
+
+	SELECT f.Titolo
+		FROM FILM f, RECITA r, ATTORI a
+		WHERE f.CodFilm = r.CodFilm* 
+		AND r.CodAttore* = a.CodAttore
+		AND 'a.Nome = S.Loren'
+
+8) Il titolo dei film dello stesso regista di “Casablanca”
+	-- titolo dei film di un Regista x
+	-- Regista di Casablanca
+
+SELECT f.Titolo
+	FROM FILM f
+	WHERE f.Regista = x;
+						  
+SELECT f.Regista
+	FROM FILM f
+	WHERE f.Titolo = 'Casablanca';
+
+
+-- a questo punto le unisci in quanto quella sotto produce un singolo valore che va in x
+
+SELECT f.Titolo
+	FROM FILM f
+	WHERE f.Regista = (
+	SELECT f.Regista
+		FROM FILM f
+		WHERE f.Titolo = 'Casablanca';
+);
+
+9) Il titolo dei film in cui recita M. Mastroianni
+
+SELECT f.Titolo
+	FROM FILM f 
+	 JOIN RECITA r
+		ON f.CodFilm = r.CodFilm*
+	 JOIN ATTORI a
+		ON r.CodAttore* = a.CodAttore
+	WHERE a.Nome = 'M. Mastroianni'
+
+9.1) Con le SubQuery
+
+select F.titolo
+from Film as F
+where F.codFilm = (select R.codFilm
+                from Recita as R
+                where R.codAttore = (select A.codAttore
+                                    from Attori as A
+                                    where A.Nome = 'M.Mastroianni'));
+
+select F.titolo
+from Film as F
+where 'M.Mastroianni' in (select A.nome
+                        from Attori A JOIN Recita R ON R.codAttore = A.CodAttore);
+
+10) Per ogni film che è stato proiettato a Pisa nel gennaio 2005, il titolo del film e il nome della sala.
+
+SELECT f.Titolo,s.Nome
+FROM FILM f,
+JOIN PROIEZIONI p 
+	ON f.CodFilm = p.CodFilm*
+JOIN SALE s
+	ON p.CodSala* = s.CodSala
+WHERE (s.Citta = 'Pisa' AND p.DataProiezione BETWEEN '01-GEN-2005' AND '31-GEN-2005')
+
+11) Il numero di sale di Pisa con più di 60 posti
+
+SELECT COUNT(*)
+FROM SALE s
+WHERE s.Posti > 60 AND s.Citta = 'Pisa';
+
+12) Il numero totale di posti delle sale di Pisa
+
+SELECT SUM(s.Posti)
+FROM SALE s
+WHERE s.Citta = 'Pisa';
+
+13) Per ogni città, il numero di sale
+
+SELECT s.Citta, COUNT(s.Nome) 	-- il numero di sale (ognuna con Nome proprio)
+FROM SALE s
+GROUP BY s.Citta	--per ogni citta
+
++++
+
+14) Per ogni città, il numero di sale con più di 60 posti
+
+SELECT s.Citta, COUNT(s.Nome) 	
+FROM SALE s
+WHERE s.Posti > 60
+GROUP BY s.Citta
+
+
+15) Per ogni regista, il numero di film diretti dopo il 1990
+
+SELECT f.Regista, COUNT(f.Titolo) 	
+FROM FILM f
+WHERE f.AnnoProduzione > 1990
+GROUP BY f.Regista
+
+
+16) Per ogni regista, l’incasso totale di tutte le proiezioni dei suoi film
+
+SELECT f.Regista, SUM(p.Incasso) 	
+FROM FILM f, PROIEZIONI p
+WHERE f.CodFilm = p.CodFilm*
+GROUP BY f.Regista
+
+
+17) Per ogni film di S.Spielberg, il titolo del film, il numero totale di proiezioni a Pisa e l’incasso totale
+
+[#numero tot proiezioni con cod proiezione? Perchè alcune stessa data magari non viene contata]
+
+SELECT f.Titolo, COUNT (p.DataProiezione), SUM(p.Incasso) 	
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm* 
+ JOIN SALE s
+	ON p.CodSala* = s.CodSala
+WHERE f.Regista = 'S.Spielberg'
+ AND s.Citta = 'Pisa'
+GROUP BY f.Titolo	
+
+
+18) Per ogni regista e per ogni attore, il numero di film del regista con l’attore
+
+SELECT f.Regista, a.Attore, COUNT(f.Titolo)
+FROM FILM f
+ JOIN RECITA r
+	ON f.CodFilm = r.CodFilm*
+ JOIN ATTORI a
+	ON r.CodAttore* = a.CodAttore 
+GROUP BY (f.Regista, a.Attore)
+
+19) Il regista ed il titolo dei film in cui recitano meno di 6 attori
+
+
+SELECT f.Regista, f.Titolo
+FROM FILM f
+ JOIN RECITA r
+	ON f.CodFilm = r.CodFilm* 
+ JOIN ATTORI a
+	ON r.CodAttore* = a.CodAttore
+GROUP BY (f.Regista, f.Titolo)
+HAVING COUNT (a.CodAttore) < 6
+
+
+20) Per ogni film prodotto dopo il 2000, il codice, il titolo e l’incasso totale di tutte le sue proiezioni
+
+SELECT f.CodFilm, f.Titolo, SUM(p.Incasso)
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+WHERE f.AnnoProduzione > 2000
+GROUP BY (f.CodFilm, f.Titolo)
+
+
+21) Il numero di attori dei film in cui appaiono solo attori nati prima del 1970
+
+-- Caso Attori totali di tutti i film sotto 1970
+
+
+SELECT COUNT( DISTINCT a.CodAttore) AS Numero_Attori
+FROM FILM f
+ JOIN RECITA r
+	ON f.CodFilm = r.CodFilm*
+ JOIN ATTORI a
+	ON r.CodAttore* = a.CodAttore
+
+
+WHERE f.CodFilm NOT IN (
+	SELECT f.CodFilm
+	FROM FILM f
+	 JOIN RECITA r
+		ON f.CodFilm = r.CodFilm*
+ 	 JOIN ATTORI a
+		ON r.CodAttore* = a.CodAttore
+	WHERE a.AnnoNascita > 1970 
+);
+
+
+-- Caso Attori in ogni film sotto 1970
+
+SELECT f.CodFilm, COUNT(a.CodAttore) AS Numero_Attori
+FROM FILM f
+ JOIN RECITA r
+	ON f.CodFilm = r.CodFilm*
+ JOIN ATTORI a
+	ON r.CodAttore* = a.CodAttore
+WHERE f.CodFilm NOT IN (
+	SELECT f.CodFilm
+	FROM FILM f
+	 JOIN RECITA r
+		ON f.CodFilm = r.CodFilm*
+ 	 JOIN ATTORI a
+		ON r.CodAttore* = a.CodAttore
+	WHERE a.AnnoNascita > 1970 
+)
+GROUP BY f.CodFilm;
+
+
+22) Per ogni film di fantascienza, il titolo e l’incasso totale di tutte le sue proiezioni
+
+SELECT f.Titolo, SUM (p.Incasso) 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+WHERE f.Genere = 'Fantascienza'
+GROUP BY f.Titolo
+
+23) Per ogni film di fantascienza il titolo e l’incasso totale di tutte le sue proiezioni successive al 1/1/01
+
+SELECT f.Titolo, SUM (p.Incasso) 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+WHERE f.Genere = 'Fantascienza' AND p.DataProiezione > '01-GEN-2001' 	
+GROUP BY f.Titolo
+
+
+24) Per ogni film di fantascienza che non è mai stato proiettato prima del 1/1/01, il titolo e l’incasso totale di tutte le sue proiezioni
+
+[Anno di produzione in quanto se metto data proiezione alcuni film potrebbero essere proiettati a cavallo, alcune proiezioni prima alcune dopo]
+
+SELECT f.Titolo, SUM (p.Incasso) 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+WHERE f.Genere = 'Fantascienza' 
+AND (
+	SELECT MIN(p2.DataProiezione)
+	FROM PROIEZIONI p2
+	WHERE p2.CodFilm* = f.CodFilm
+) >'01-GEN-2001'
+GROUP BY f.Titolo;
+
+
+25) Per ogni sala di Pisa, che nel mese di gennaio 2005 ha incassato più di 20000 €, il nome della sala e l’incasso totale (sempre del mese di gennaio 2005)
+
+SELECT s.Nome, s.CodSala, SUM (p.Incasso)
+FROM SALE s
+ JOIN PROIEZIONI p
+	ON p.CodSala* = s.CodSala
+WHERE s.Citta = 'Pisa' 
+AND p.DataProiezione BETWEEN '01-GEN-2005' AND '31-GEN-2005' 
+GROUP BY (s.Nome, s.CodSala)
+HAVING SUM(p.INCASSO) > 20000
+
+26) I titoli dei film che non sono mai stati proiettati a Pisa
+
+-- caso subtract
+
+SELECT DISTINCT f.Titolo 
+FROM FILM f
+ 
+MINUS
+
+SELECT DISTINCT f.Titolo 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+ JOIN SALE s
+	ON p.CodSala* = s.CodSala
+WHERE s.Citta = 'Pisa'
+
+-- caso subquery
+
+SELECT DISTINCT f.Titolo 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+ JOIN SALE s
+	ON p.CodSala* = s.CodSala
+WHERE s.Citta NOT IN (
+	SELECT s2.Citta
+	FROM SALE s2
+	WHERE s.Citta = 'Pisa'
+);
+
+
+27) I titoli dei film che sono stati proiettati solo a Pisa
+
+-- Da tutti i Film io vado a rimuovere con Subtract i Film che hanno almeno una proiezione fuori Pisa e il risultato che mi rimane sono i Film che non hanno mai avuto una proiezione fuori pisa quindi quelli proiettati SOLO a Pisa
+
+SELECT f.Titolo 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+WHERE p.DataProiezione IS NOT NULL
+
+MINUS
+
+SELECT f.Titolo 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+ JOIN SALE s
+	ON p.CodSala* = s.CodSala
+WHERE s.Citta != 'Pisa'
+
+
+28) I titoli dei film dei quali non vi è mai stata una proiezione con incasso superiore a 500 €
+
+SELECT f.Titolo 
+FROM FILM f
+
+MINUS
+
+SELECT f.Titolo 
+FROM FILM f
+ JOIN PROIEZIONI p
+	ON f.CodFilm = p.CodFilm*
+WHERE p.Incasso > 500
+
+--usando funzione di aggregazione con subquery
+
+SELECT f.Titolo 
+FROM FILM f
+WHERE (
+	SELECT MAX(p.Incasso)
+	FROM PROIEZIONI p
+	WHERE f.CodFilm = p.CodFilm*	
+) < 500;
+
+-- usando NOT IN
+
+SELECT f.Titolo
+FROM FILM f 
+WHERE f.CodFilm NOT IN (
+	SELECT p.CodFilm
+	FROM PROIEZIONI p
+	WHERE p.Incasso > 500
+);
+
+
+29) I titoli dei film le cui proiezioni hanno sempre ottenuto un incasso superiore a 1000 €
+
+SELECT f.Titolo 
+FROM FILM f
+WHERE f.CodFilm NOT IN (
+	SELECT p.CodFilm
+	FROM PROIEZIONI p
+	WHERE p.Incasso <= 1000
+);
+
+30) Il nome degli attori italiani che non hanno mai recitato in film di Fellini
+
+SELECT a.Nome
+FROM ATTORI a
+WHERE a.CodAttore NOT IN (
+	SELECT r.CodAttore*
+	FROM RECITA r
+	 JOIN FILM f
+		ON r.CodFilm* = f.CodFilm
+	WHERE f.regista = 'F.Fellini'	 
+);
+
+--con MINUS
+
+SELECT a.CodAttore
+FROM ATTORI a
+
+MINUS
+
+SELECT a.CodAttore
+FROM ATTORI a
+ JOIN RECITA r
+	ON a.CodAttore = r.CodAttore*
+ JOIN FILM f
+	ON r.CodFilm* = f.CodFilm 
+WHERE f.Regista = 'F.Fellini'
+
+
+31) Il titolo dei film di Fellini in cui non recitano attori italiani
+
+SELECT f.Titolo
+FROM FILM f
+WHERE f.Regista = 'Fellini'
+AND f.CodFilm NOT IN (
+	SELECT r.CodFilm*
+	FROM RECITA r
+	 JOIN ATTORI a
+		ON r.CodAttore* = a.CodAttore
+	 WHERE a.Nazionalita = 'Italiana'
+);
+
+
+32) Il titolo dei film senza attori
+
+--> OCCHIO ALLE LEFT JOIN!! QUI VOLEVAMO I VALORI NULL DEI FILM QUINDI PER VEDERLI SERVE LEFT JOIN
+
+SELECT f.Titolo, f.CodFilm
+FROM FILM f
+ LEFT JOIN RECITA r
+	ON f.CodFilm = r.CodFilm*
+GROUP BY (f.Titolo, f.CodFilm)
+HAVING COUNT(r.CodAttore*) = 0;
+
+
+33) Gli attori che prima del 1960 hanno recitato solo nei film di Fellini
+
+SELECT a.Nome, a.CodAttore 
+FROM ATTORI a 
+WHERE a.CodAttore NOT IN (
+	SELECT r.CodAttore
+	FROM RECITA r
+	 JOIN FILM f
+		ON r.CodFilm = f.CodFilm
+	WHERE (f.AnnoProduzione < 1960 AND f.Regista != 'F.Fellini')
+	OR f.AnnoProduzione >= 1960);
+
+34) Gli attori che hanno recitato in film di Fellini solo prima del 1960 - ??
+
+SELECT a.Nome
+FROM ATTORI a 
+ JOIN RECITA r 
+	ON a.CodAttore = r.CodAttore 
+ JOIN FILM f 
+	ON f.CodFilm = r.CodFilm
+WHERE f.Regista = 'F.Fellini' 
+
+MINUS
+
+SELECT a.Nome
+FROM ATTORI a 
+ JOIN RECITA r 
+	ON a.CodAttore = r.CodAttore 
+ JOIN FILM f 
+	ON f.CodFilm = r.CodFilm
+AND f.AnnoProduzione > 1960;
+
+
+#################################################################################################################################
+
+
+

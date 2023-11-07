@@ -1,0 +1,90 @@
+package classi;
+
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ThreadChatServer extends Thread {
+	private String serverName = "ChatServer";
+	private int portNum;
+	private ServerSocket server = null;
+	private List<ClientHandler> clientHandlers = new ArrayList<>();
+
+	public ThreadChatServer(int portNum) throws IOException {
+		setName(serverName);
+
+		this.portNum = portNum;
+
+		System.out.println("Binding to port " + portNum + ", please wait  ...");
+		server = new ServerSocket(portNum);
+		System.out.println("Server started: " + server);
+	}
+
+	// ENTRY POINT del THREAD
+	@Override
+	public void run() {
+		System.out.println("Waiting for a client ...");
+		while (true) {
+			try {
+				Socket socket = server.accept();
+
+				System.out.println("Client accepted: " + socket);
+
+				ClientHandler clientHandler = new ClientHandler(socket);
+
+				clientHandlers.add(clientHandler);
+				clientHandler.start();
+
+			} catch (IOException e) {
+				System.out.println("Acceptance Error: " + e.getMessage());
+			}
+		}
+	}
+}
+
+class ClientHandler extends Thread {
+	private Socket socket;
+	private DataInputStream streamIn;
+	private DataOutputStream streamOut;
+
+	public ClientHandler(Socket socket) {
+		this.socket = socket;
+	}
+
+	@Override
+	public void run() {
+		try {
+			open();
+
+			while (true) {
+				String line = streamIn.readUTF();
+				System.out.println(line);
+				if (line.trim().equalsIgnoreCase(".bye")) {
+					close();
+					break;
+				}
+				send(line);
+			}
+
+		} catch (IOException e) {
+			System.out.println("Error handling client: " + e.getMessage());
+		}
+	}
+
+	private void open() throws IOException {
+		streamIn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+		streamOut = new DataOutputStream(socket.getOutputStream());
+	}
+
+	private void close() throws IOException {
+		if (socket != null) socket.close();
+		if (streamIn != null) streamIn.close();
+		if (streamOut != null) streamOut.close();
+	}
+
+	private void send(String message) throws IOException {
+		streamOut.writeUTF(message);
+	}
+}

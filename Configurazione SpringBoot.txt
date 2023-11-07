@@ -1,0 +1,182 @@
+Help-Eclipse Marketplace-Spring Boot-accetta tutto
+new project-Spring Boot-Spring StarterProject
+
+--> Con URL (copio e incollo su Google) imposto il progetto da Browser
+Name = nome dell'applicazione
+Type = Maven
+Java Version
+Group = com.prova
+Artifact Esempio
+Description = ProjectProva
+Package = com.prova
+
+Avanti
+
+Spring Boot 3.1.0
+
+Su Avaible cerchiamo le Dipendenze del pom.xml, tra cui:
+Spring Web
+Spring Data JPA & JDBC
+Oracle Driver
+MySQL Driver
+Thymeleaf
+
+Avanti 
+
+Qui nella schermata dovrebbe esserci un indirizzo che se copiato e incollato ci permette di riprendere il nostro progetto in altre macchine
+
+In src/main/java abbiamo il nostro package iniziale 
+In genere il package iniziale vuole com.nostroIdentificativo.nomeprogetto
+
+creiamo 4 package nel main
+
+model (entity)
+-> tutte le classi che corrispondono alle tabelle del Database
+controller (controller graphic)
+-> tutto ciò che restituirà un risultato all'utente ad esempio il risultato di una divisione
+repository
+-> sorta di interfacce delle varie entità
+service (controller logic)
+-> operazione effettiva 
+
+Le View in genere nella cartella resources dove troviamo static (tutto ciò che non è HTML) e templates
+In resources ha creato anche application.properties:
+qui connetto il DB al progetto
+(es. cerca su google how to connect e copi e incolli le dipendenze)
+
+[spring.datasource.url=jdbc:oracle:thin:@localhost:1521:xe
+spring.datasource.username=username
+spring.datasource.password=password]
+
+
+xe = sostituisco con il nome del database es. MYDB
+username = SYS/SYSTEM
+password = admin
+
+[spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.thymeleaf.prefix=classpath:/templates/
+spring.thymeleaf.suffix=.html
+spring.mvc.view.prefix=classpath:/templates/
+spring.mvc.view.suffix=.html]
+
+queste sono le proprietà da configurazione di Hubernate thymeleaf
+
+
+1) andiamo su package entity e creiamo classe Numero
+--> controllo con localhost8080
+
+2) andiamo sul nostro DB sapendo che dobbiamo mappare l'entità creata nel DB
+
+quando mappiamo una classe ad una tabella abbiamo l'annotation @Entity -> con cui specifico è un'entità ma non sa quale
+@Table(name = "nome_tabella") -> con il quale specifico quale è la tabella dal nome che ho dato
+
+all'interno della classe uso
+
+@Id
+@GeneratedValue (strategy = GenerationType.IDENTITY)
+
+--> tramite questa annotation andiamo a creare un ID progressivo ad ogni insert
+
+@Column(name = "idnumeri") 
+--> i name devono essere identici
+
+poi definisco la variabile che conterrà il campo in questo caso
+
+private Long id;
+
+Long per database molto grandi
+
+stessa cosa per le altre colonne 
+
+e infine faccio tutti i getter and setter
+
+creo anche due costruttori, uno vuoto e uno che prende tutti gli attributi dell'entità 
+
+2) Creo l'interfaccia NumeroRepository collegata all'entità che farò in modo estende CrudRepository che è un'interfaccia che ci dà disponibilità delle operazioni base
+
+vuole come riferimento <Classe, Tipo Id>
+
+All'interno di questa possiamo definire tutti i emtodi personalizzati
+
+3) a questo punto faccio la parte logica nel service con la creazione tramite polimorfismo 4a specie della mia istanza e i miei metodi
+
+creo una classe "NumeroService" con annotazione @Service
+
+NumeroRepository n;
+
+public NumeroService(NumeroRepository numero){
+this.n=n;
+}
+
+
+public Numero save(int a, int b){
+Numero num = new Numero();
+num.setA(a);
+num.setB(b);
+return n.save(num);
+
+4) andiamo sul package Controller per fare la parte controller graphic
+
+creo classe NumeroController con annotazione @Controller
+
+NumeroService s;
+
+public NumeroController(NumeroService ser){
+this.s = ser;
+}
+
+5) Inserisco html nel Templates e 
+
+Poi usiamo il @GetMapping("/name_path_che_vogliamo")
+
+public String form(Model model){
+return "form";
+}
+
+model è un'interfaccia 
+
+tramite thymeleaf ricerca nelle resources e aggiunge al path il prefix e suffix dichiarati nell'application properties
+
+Quindi una volta che è stato copilato il form e inviato parte il 
+
+@PostMapping("stesso_path_in_action_del_form_html")
+public ResponseEntity<String>salva(@RequestParam("nome_del_campo_nel_form") int xxx, @RequestParam("numero2") int numero2){
+s.save(xxx,numero2);
+return ResponseEntity.ok("possiamo inserire qualsiasi cosa");
+}
+
+Classe che ritorna una pagina di risposta con relativo StatusCode
+
+
+I metodi personalizzati direttamente nel service non nell'interfaccia
+
+@RestController restituisce le pagine in xml
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
